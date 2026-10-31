@@ -220,13 +220,12 @@ function render(
   drawMesh(gl, ff, meshes.cylinder, model, COLORS.TURRET_CANNON, 30);
 
   // Projectile: Black sphere positioned at the cannon's muzzle ready to launch
-  const barrelLength = CANNON_LENGTH;
-  const projY = cannonPivotY + Math.sin(TURRET.pitchAngle) * (barrelLength + 0.38);
-  const projZ = tz - Math.cos(TURRET.pitchAngle) * (barrelLength + 0.38);
+  // El cañón va desde z = 0 hasta z = -CANNON_LENGTH en su sistema de coordenadas local
   const projScale = PROJECTILE_RADIUS / TARGET_RADIUS;
-
   mat4.identity(model);
-  mat4.translate(model, model, [tx, projY, projZ]);
+  mat4.translate(model, model, [tx, cannonPivotY, tz]);
+  mat4.rotateX(model, model, TURRET.pitchAngle);
+  mat4.translate(model, model, [0, 0, -CANNON_LENGTH]);
   mat4.scale(model, model, [projScale, projScale, projScale]);
   drawMesh(gl, ff, meshes.sphere, model, COLORS.PROJECTILE, 40);
 }
