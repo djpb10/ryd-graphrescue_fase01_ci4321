@@ -173,10 +173,10 @@ function render(
   const tz = TURRET.z;
 
   // Turret Body (Rectangular prism: width 2.2, height 1.1, depth 2.2)
-  const bodyHeight = 1.1;
+  const bodyHeight = 1.8;
   mat4.identity(model);
   mat4.translate(model, model, [tx, bodyHeight / 2, tz]);
-  mat4.scale(model, model, [2.2, bodyHeight, 2.2]);
+  mat4.scale(model, model, [2.5, bodyHeight, 2.2]);
   drawMesh(gl, ff, meshes.box, model, COLORS.TURRET_BODY, 20);
 
   // Sphere joint on top of the rectangular body
