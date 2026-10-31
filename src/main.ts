@@ -109,25 +109,31 @@ const TARGETS = [
 ] as const;
 
 // Turret state and configuration
+const MIN_PITCH = 5 * (Math.PI / 180);
+const MAX_PITCH = 90 * (Math.PI / 180);
+
 const TURRET = {
   x: 0.0,
   z: 8.0, // Movida hacia adelante hacia el campo
-  pitchAngle: 28 * (Math.PI / 180), // 28 deg inclination
-  speed: 12.0, // Unidades por segundo
+  pitchAngle: 28 * (Math.PI / 180), // Ángulo inicial entre 5 y 90 grados
+  speed: 12.0, // Unidades por segundo (movimiento horizontal)
+  pitchSpeed: 1.0, // Radianes por segundo (~57 deg/s)
 };
 
 // Controls state
 const keysPressed: Record<string, boolean> = {};
 
+const TRACKED_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+
 window.addEventListener('keydown', (e: KeyboardEvent) => {
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+  if (TRACKED_KEYS.has(e.key)) {
     keysPressed[e.key] = true;
     e.preventDefault();
   }
 });
 
 window.addEventListener('keyup', (e: KeyboardEvent) => {
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+  if (TRACKED_KEYS.has(e.key)) {
     keysPressed[e.key] = false;
     e.preventDefault();
   }
@@ -261,6 +267,16 @@ function run(canvas: HTMLCanvasElement): void {
     }
     // Delimitar dentro del campo
     TURRET.x = Math.max(-halfWidth, Math.min(halfWidth, TURRET.x));
+
+    // Control de elevación/rotación del cañón y proyectil
+    if (keysPressed['ArrowUp']) {
+      TURRET.pitchAngle += TURRET.pitchSpeed * dt;
+    }
+    if (keysPressed['ArrowDown']) {
+      TURRET.pitchAngle -= TURRET.pitchSpeed * dt;
+    }
+    // Limitar entre 5° y 90°
+    TURRET.pitchAngle = Math.max(MIN_PITCH, Math.min(MAX_PITCH, TURRET.pitchAngle));
   }
 
   function frame(now: number): void {
