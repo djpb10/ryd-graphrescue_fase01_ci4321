@@ -108,12 +108,30 @@ const TARGETS = [
   { x: 9.0, y: 7.0, z: -15.0 },
 ] as const;
 
-// Static turret configuration
+// Turret state and configuration
 const TURRET = {
   x: 0.0,
   z: 8.0, // Movida hacia adelante hacia el campo
   pitchAngle: 28 * (Math.PI / 180), // 28 deg inclination
-} as const;
+  speed: 12.0, // Unidades por segundo
+};
+
+// Controls state
+const keysPressed: Record<string, boolean> = {};
+
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    keysPressed[e.key] = true;
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('keyup', (e: KeyboardEvent) => {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    keysPressed[e.key] = false;
+    e.preventDefault();
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -231,7 +249,25 @@ function run(canvas: HTMLCanvasElement): void {
   setupState(gl, canvas);
   setupScene(ff);
 
-  function frame(): void {
+  let lastTime = performance.now();
+
+  function update(dt: number): void {
+    const halfWidth = FIELD_WIDTH / 2 - 2.0; // Margen para no salirse del campo
+    if (keysPressed['ArrowLeft']) {
+      TURRET.x -= TURRET.speed * dt;
+    }
+    if (keysPressed['ArrowRight']) {
+      TURRET.x += TURRET.speed * dt;
+    }
+    // Delimitar dentro del campo
+    TURRET.x = Math.max(-halfWidth, Math.min(halfWidth, TURRET.x));
+  }
+
+  function frame(now: number): void {
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    update(dt);
     render(gl, ff, meshes);
     requestAnimationFrame(frame);
   }
