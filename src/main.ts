@@ -112,6 +112,18 @@ const TARGETS = [
 const MIN_PITCH = 5 * (Math.PI / 180);
 const MAX_PITCH = 90 * (Math.PI / 180);
 
+let activeTargets = [true, true, true]; // Para saber cuáles siguen vivos
+
+const PROJECTILE = {
+  isFlying: false,
+  x: 0,
+  y: 0,
+  z: 0,
+  vx: 0,
+  vy: 0,
+  vz: 0
+};
+
 const TURRET = {
   x: 0.0,
   z: 8.0, // Movida hacia adelante hacia el campo
@@ -123,12 +135,51 @@ const TURRET = {
 // Controls state
 const keysPressed: Record<string, boolean> = {};
 
-const TRACKED_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+let powerLevel = 1; // 1, 2, o 3
+const LAUNCH_SPEEDS = [0, 20.0, 30.0, 42.0]; // [dummy, nivel 1, nivel 2, nivel 3]
+const GRAVITY = -24.0; // Aceleración en Y
+
+// Actualiza tus TRACKED_KEYS para incluir los números, la F, espacio y R
+const TRACKED_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '1', '2', '3', 'f', 'F', ' ', 'r', 'R']);
+
+// En el EventListener de 'keydown', agrega estas condicionales DESPUÉS de la línea `keysPressed[e.key] = true;`:
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (TRACKED_KEYS.has(e.key)) {
+    keysPressed[e.key] = true;
+    e.preventDefault();
+
+    // AQUÍ VAN PEGADOS LOS IF:
+    if (e.key === '1') powerLevel = 1;
+    if (e.key === '2') powerLevel = 2;
+    if (e.key === '3') powerLevel = 3;
+    if (e.key.toLowerCase() === 'f') powerLevel = powerLevel === 3 ? 1 : powerLevel + 1;
+
+    if (e.key === ' ' && !PROJECTILE.isFlying) {
+      fireProjectile();
+    }
+    if (e.key.toLowerCase() === 'r') {
+      resetGame();
+    }
+  }
+});
 
 window.addEventListener('keydown', (e: KeyboardEvent) => {
   if (TRACKED_KEYS.has(e.key)) {
     keysPressed[e.key] = true;
     e.preventDefault();
+
+    // AQUÍ VAN LAS CONDICIONES (Adentro del evento)
+    if (e.key === '1') powerLevel = 1;
+    if (e.key === '2') powerLevel = 2;
+    if (e.key === '3') powerLevel = 3;
+    if (e.key.toLowerCase() === 'f') powerLevel = powerLevel === 3 ? 1 : powerLevel + 1;
+
+    if (e.key === ' ' && !PROJECTILE.isFlying) {
+      fireProjectile();
+    }
+    if (e.key.toLowerCase() === 'r') {
+      resetGame();
+    }
   }
 });
 
@@ -138,6 +189,30 @@ window.addEventListener('keyup', (e: KeyboardEvent) => {
     e.preventDefault();
   }
 });
+
+function fireProjectile() {
+  PROJECTILE.isFlying = true;
+  
+  // Posición inicial: la punta del cañón
+  const jointCenterY = 1.8 + 0.25; 
+  // Trigonometría para calcular la punta exacta basado en el pitch (rotado en el eje X)
+  PROJECTILE.x = TURRET.x;
+  PROJECTILE.y = jointCenterY + Math.sin(TURRET.pitchAngle) * CANNON_LENGTH;
+  PROJECTILE.z = TURRET.z - Math.cos(TURRET.pitchAngle) * CANNON_LENGTH;
+
+  // Velocidad inicial
+  const speed = LAUNCH_SPEEDS[powerLevel];
+  PROJECTILE.vx = 0; // No se mueve en X (fijo)
+  PROJECTILE.vy = speed * Math.sin(TURRET.pitchAngle);
+  PROJECTILE.vz = -speed * Math.cos(TURRET.pitchAngle); 
+}
+
+function resetGame() {
+  PROJECTILE.isFlying = false;
+  activeTargets = [true, true, true];
+  TURRET.x = 0;
+  TURRET.pitchAngle = 28 * (Math.PI / 180);
+}
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -186,7 +261,9 @@ function render(
   drawMesh(gl, ff, meshes.ground, model, COLORS.GROUND, 5);
 
   // Targets: Three static reddish-orange spheres floating above the ground
-  for (const target of TARGETS) {
+  for (let i = 0; i < TARGETS.length; i++) {
+    if (!activeTargets[i]) continue; // No dibujar si fue destruido
+    const target = TARGETS[i];
     mat4.identity(model);
     mat4.translate(model, model, [target.x, target.y, target.z]);
     drawMesh(gl, ff, meshes.sphere, model, COLORS.TARGET, 35);
@@ -202,6 +279,20 @@ function render(
   mat4.translate(model, model, [tx, bodyHeight / 2, tz]);
   mat4.scale(model, model, [2.5, bodyHeight, 2.2]);
   drawMesh(gl, ff, meshes.box, model, COLORS.TURRET_BODY, 20);
+
+  // --- INDICADOR DE FUERZA (3 Barras laterales) ---
+  const COLOR_BAR_OFF: Color = [0.0, 0.4, 0.0, 1.0]; // Verde oscuro
+  const COLOR_BAR_ON: Color = [0.2, 0.9, 0.2, 1.0];  // Verde claro
+
+  for (let b = 1; b <= 3; b++) {
+    // Si el nivel actual es mayor o igual a la barra, se enciende
+    const barColor = b <= powerLevel ? COLOR_BAR_ON : COLOR_BAR_OFF;
+    mat4.identity(model);
+    // Las ubicamos a un lado del cañón, apiladas hacia arriba
+    mat4.translate(model, model, [tx - 1.3, (bodyHeight / 2) + (b * 0.4) - 0.5, tz]);
+    mat4.scale(model, model, [0.2, 0.3, 0.8]); // Paralelogramos pequeños
+    drawMesh(gl, ff, meshes.box, model, barColor, 10);
+  }
 
   // Sphere joint on top of the rectangular body
   const jointRadius = 0.60;
@@ -219,16 +310,25 @@ function render(
   mat4.rotateX(model, model, TURRET.pitchAngle);
   drawMesh(gl, ff, meshes.cylinder, model, COLORS.TURRET_CANNON, 30);
 
-  // Projectile: Black sphere positioned at the cannon's muzzle ready to launch
-  // El cañón va desde z = 0 hasta z = -CANNON_LENGTH en su sistema de coordenadas local
-  const projScale = PROJECTILE_RADIUS / TARGET_RADIUS;
-  mat4.identity(model);
-  mat4.translate(model, model, [tx, cannonPivotY, tz]);
-  mat4.rotateX(model, model, TURRET.pitchAngle);
-  mat4.translate(model, model, [0, 0, -CANNON_LENGTH]);
-  mat4.scale(model, model, [projScale, projScale, projScale]);
-  drawMesh(gl, ff, meshes.sphere, model, COLORS.PROJECTILE, 40);
-}
+  // Projectile: Controlar si está pegado al cañón o volando libre
+  if (!PROJECTILE.isFlying) {
+    // Pegado a la torreta (como lo hizo tu compañero)
+    const projScale = PROJECTILE_RADIUS / TARGET_RADIUS;
+    mat4.identity(model);
+    mat4.translate(model, model, [tx, cannonPivotY, tz]);
+    mat4.rotateX(model, model, TURRET.pitchAngle);
+    mat4.translate(model, model, [0, 0, -CANNON_LENGTH]);
+    mat4.scale(model, model, [projScale, projScale, projScale]);
+    drawMesh(gl, ff, meshes.sphere, model, COLORS.PROJECTILE, 40);
+  } else {
+    // Volando independiente en el mundo
+    const projScale = PROJECTILE_RADIUS / TARGET_RADIUS;
+    mat4.identity(model);
+    mat4.translate(model, model, [PROJECTILE.x, PROJECTILE.y, PROJECTILE.z]);
+    mat4.scale(model, model, [projScale, projScale, projScale]);
+    drawMesh(gl, ff, meshes.sphere, model, COLORS.PROJECTILE, 40);
+  }
+} 
 
 // ---------------------------------------------------------------------------
 // Run
@@ -276,6 +376,35 @@ function run(canvas: HTMLCanvasElement): void {
     }
     // Limitar entre 5° y 90°
     TURRET.pitchAngle = Math.max(MIN_PITCH, Math.min(MAX_PITCH, TURRET.pitchAngle));
+
+    if (PROJECTILE.isFlying) {
+      PROJECTILE.vy += GRAVITY * dt;
+      PROJECTILE.y += PROJECTILE.vy * dt;
+      PROJECTILE.z += PROJECTILE.vz * dt;
+
+      // Si toca el suelo
+      if (PROJECTILE.y <= PROJECTILE_RADIUS) {
+        PROJECTILE.isFlying = false;
+      }
+
+      // Si choca con un objetivo
+      for (let i = 0; i < TARGETS.length; i++) {
+        if (!activeTargets[i]) continue;
+        const target = TARGETS[i];
+        
+        // Distancia euclidiana entre centro de bala y centro de objetivo
+        const dx = PROJECTILE.x - target.x;
+        const dy = PROJECTILE.y - target.y;
+        const dz = PROJECTILE.z - target.z;
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+        if (dist <= (TARGET_RADIUS + PROJECTILE_RADIUS)) {
+          activeTargets[i] = false; // Objetivo destruido
+          PROJECTILE.isFlying = false; // Bala desaparece
+          break;
+        }
+      }
+    }
   }
 
   function frame(now: number): void {
