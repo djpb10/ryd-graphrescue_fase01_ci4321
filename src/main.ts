@@ -101,11 +101,14 @@ function setupScene(ff: FF): void {
 // Scene Objects Configuration (Static)
 // ---------------------------------------------------------------------------
 
-// Fixed static positions for the 3 reddish-orange targets floating over the field
+// Fixed static positions for the 3 reddish-orange targets floating over the field:
+// Target 1: distancia cercana (alcanzable con Nivel 1, ~28.2°)
+// Target 2: distancia media (requiere al menos Nivel 2, ~23.4°)
+// Target 3: distancia lejana (requiere Nivel 3 de máxima fuerza, ~21.6°)
 const TARGETS = [
-  { x: -9.0, y: 6.5, z: -12.0 },
-  { x: 0.0, y: 8.5, z: -20.0 },
-  { x: 9.0, y: 7.0, z: -15.0 },
+  { x: -8.0, y: 5.5, z: -8.0 },  // Nivel 1 (cercano-medio, a 16 unidades de la torreta)
+  { x: 0.0, y: 7.0, z: -16.0 },  // Nivel 2 (medio)
+  { x: 8.0, y: 8.0, z: -35.0 },  // Nivel 3 (lejano)
 ] as const;
 
 // Turret state and configuration
@@ -142,33 +145,12 @@ const GRAVITY = -24.0; // Aceleración en Y
 // Actualiza tus TRACKED_KEYS para incluir los números, la F, espacio y R
 const TRACKED_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '1', '2', '3', 'f', 'F', ' ', 'r', 'R']);
 
-// En el EventListener de 'keydown', agrega estas condicionales DESPUÉS de la línea `keysPressed[e.key] = true;`:
+// Event listeners de teclado para interacción
 window.addEventListener('keydown', (e: KeyboardEvent) => {
   if (TRACKED_KEYS.has(e.key)) {
     keysPressed[e.key] = true;
     e.preventDefault();
 
-    // AQUÍ VAN PEGADOS LOS IF:
-    if (e.key === '1') powerLevel = 1;
-    if (e.key === '2') powerLevel = 2;
-    if (e.key === '3') powerLevel = 3;
-    if (e.key.toLowerCase() === 'f') powerLevel = powerLevel === 3 ? 1 : powerLevel + 1;
-
-    if (e.key === ' ' && !PROJECTILE.isFlying) {
-      fireProjectile();
-    }
-    if (e.key.toLowerCase() === 'r') {
-      resetGame();
-    }
-  }
-});
-
-window.addEventListener('keydown', (e: KeyboardEvent) => {
-  if (TRACKED_KEYS.has(e.key)) {
-    keysPressed[e.key] = true;
-    e.preventDefault();
-
-    // AQUÍ VAN LAS CONDICIONES (Adentro del evento)
     if (e.key === '1') powerLevel = 1;
     if (e.key === '2') powerLevel = 2;
     if (e.key === '3') powerLevel = 3;
