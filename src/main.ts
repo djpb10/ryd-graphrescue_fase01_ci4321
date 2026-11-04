@@ -32,6 +32,13 @@ interface GPUMesh {
   indexCount: number;
 }
 
+interface DynamicLineMesh {
+  vao: WebGLVertexArrayObject;
+  vbo: WebGLBuffer;
+  update: (points: Float32Array, count: number) => void;
+  vertexCount: number;
+}
+
 function getContext(canvas: HTMLCanvasElement): WebGL2RenderingContext {
   const gl = canvas.getContext('webgl2');
   if (!gl) throw new Error('WebGL2 is not available.');
@@ -58,6 +65,35 @@ function uploadMesh(gl: WebGL2RenderingContext, mesh: MeshData): GPUMesh {
   gl.bindVertexArray(null);
 
   return { vao, indexCount: mesh.indices.length };
+}
+
+function createDynamicLineMesh(gl: WebGL2RenderingContext, maxVertices: number = 300): DynamicLineMesh {
+  const vbo = gl.createBuffer()!;
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  // Allocate buffer for maxVertices positions (3 floats per vertex)
+  gl.bufferData(gl.ARRAY_BUFFER, maxVertices * 3 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
+
+  const vao = gl.createVertexArray()!;
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.enableVertexAttribArray(ATTRIB.POSITION);
+  gl.vertexAttribPointer(ATTRIB.POSITION, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
+  // Disabled normal array: FixedFunction unlit path will use ATTRIB.COLOR
+  gl.disableVertexAttribArray(ATTRIB.NORMAL);
+  gl.bindVertexArray(null);
+
+  const lineMesh: DynamicLineMesh = {
+    vao,
+    vbo,
+    vertexCount: 0,
+    update(points: Float32Array, count: number) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, points.subarray(0, count * 3));
+      lineMesh.vertexCount = count;
+    },
+  };
+
+  return lineMesh;
 }
 
 function setupState(gl: WebGL2RenderingContext, canvas: HTMLCanvasElement): void {
@@ -234,6 +270,7 @@ function render(
     box: GPUMesh;
     cylinder: GPUMesh;
     sphere: GPUMesh;
+    trajectory: DynamicLineMesh;
   }
 ): void {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -293,6 +330,20 @@ function render(
   mat4.rotateX(model, model, TURRET.pitchAngle);
   drawMesh(gl, ff, meshes.cylinder, model, COLORS.TURRET_CANNON, 30);
 
+  // --- VISTA PREVIA DE LA TRAYECTORIA ---
+  // Se muestra cuando el proyectil no está volando, actualizándose con posición, ángulo y fuerza
+  if (!PROJECTILE.isFlying && meshes.trajectory.vertexCount > 1) {
+    ff.disable(LIGHTING);
+    ff.setColor(COLORS.TRAJECTORY_LINE);
+    mat4.identity(model);
+    ff.setModelMatrix(model);
+
+    gl.bindVertexArray(meshes.trajectory.vao);
+    ff.drawArrays(gl.LINE_STRIP, 0, meshes.trajectory.vertexCount);
+
+    ff.enable(LIGHTING);
+  }
+
   // Projectile: Controlar si está pegado al cañón o volando libre
   if (!PROJECTILE.isFlying) {
     // Pegado a la torreta (como lo hizo tu compañero)
@@ -332,7 +383,50 @@ function run(canvas: HTMLCanvasElement): void {
     box: uploadMesh(gl, boxMesh),
     sphere: uploadMesh(gl, sphereMesh),
     cylinder: uploadMesh(gl, cylinderMesh),
+    trajectory: createDynamicLineMesh(gl, 400),
   };
+
+  const trajectoryBuffer = new Float32Array(400 * 3);
+
+  function updateTrajectoryPreview(): void {
+    if (PROJECTILE.isFlying) {
+      meshes.trajectory.vertexCount = 0;
+      return;
+    }
+
+    const jointCenterY = 1.8 + 0.25;
+    const startX = TURRET.x;
+    const startY = jointCenterY + Math.sin(TURRET.pitchAngle) * CANNON_LENGTH;
+    const startZ = TURRET.z - Math.cos(TURRET.pitchAngle) * CANNON_LENGTH;
+
+    const speed = LAUNCH_SPEEDS[powerLevel];
+    let simX = startX;
+    let simY = startY;
+    let simZ = startZ;
+    let simVy = speed * Math.sin(TURRET.pitchAngle);
+    const simVz = -speed * Math.cos(TURRET.pitchAngle);
+
+    const simDt = 0.016; // paso de tiempo para suavidad de la curva
+    let count = 0;
+
+    trajectoryBuffer[count * 3 + 0] = simX;
+    trajectoryBuffer[count * 3 + 1] = simY;
+    trajectoryBuffer[count * 3 + 2] = simZ;
+    count++;
+
+    while (simY >= PROJECTILE_RADIUS && count < 399) {
+      simVy += GRAVITY * simDt;
+      simY += simVy * simDt;
+      simZ += simVz * simDt;
+
+      trajectoryBuffer[count * 3 + 0] = simX;
+      trajectoryBuffer[count * 3 + 1] = simY;
+      trajectoryBuffer[count * 3 + 2] = simZ;
+      count++;
+    }
+
+    meshes.trajectory.update(trajectoryBuffer, count);
+  }
 
   setupState(gl, canvas);
   setupScene(ff);
@@ -395,6 +489,7 @@ function run(canvas: HTMLCanvasElement): void {
     lastTime = now;
 
     update(dt);
+    updateTrajectoryPreview();
     render(gl, ff, meshes);
     requestAnimationFrame(frame);
   }

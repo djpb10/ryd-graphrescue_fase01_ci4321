@@ -23,6 +23,8 @@ export const COLORS = {
   PROJECTILE: [0.05, 0.05, 0.05, 1.0] as const,
   // Targets: 3 reddish-orange spheres large enough to hit
   TARGET: [1.0, 0.30, 0.05, 1.0] as const,
+  // Trajectory preview line: bright yellow/orange
+  TRAJECTORY_LINE: [1.0, 0.85, 0.1, 0.85] as const,
 } as const;
 
 /** Field dimensions */
