@@ -280,17 +280,18 @@ function render(
   mat4.scale(model, model, [2.5, bodyHeight, 2.2]);
   drawMesh(gl, ff, meshes.box, model, COLORS.TURRET_BODY, 20);
 
-  // --- INDICADOR DE FUERZA (3 Barras laterales) ---
+  // --- INDICADOR DE FUERZA (3 Barras en la parte trasera del cuerpo) ---
   const COLOR_BAR_OFF: Color = [0.0, 0.4, 0.0, 1.0]; // Verde oscuro
   const COLOR_BAR_ON: Color = [0.2, 0.9, 0.2, 1.0];  // Verde claro
 
+  // La cara trasera está en +Z (hacia la cámara, tz + profundidad/2 = tz + 1.1)
+  const barOffsetsX = [-0.65, 0.0, 0.65];
   for (let b = 1; b <= 3; b++) {
     // Si el nivel actual es mayor o igual a la barra, se enciende
     const barColor = b <= powerLevel ? COLOR_BAR_ON : COLOR_BAR_OFF;
     mat4.identity(model);
-    // Las ubicamos a un lado del cañón, apiladas hacia arriba
-    mat4.translate(model, model, [tx - 1.3, (bodyHeight / 2) + (b * 0.4) - 0.5, tz]);
-    mat4.scale(model, model, [0.2, 0.3, 0.8]); // Paralelogramos pequeños
+    mat4.translate(model, model, [tx + barOffsetsX[b - 1], bodyHeight / 2, tz + 1.12]);
+    mat4.scale(model, model, [0.45, 0.25, 0.08]);
     drawMesh(gl, ff, meshes.box, model, barColor, 10);
   }
 
