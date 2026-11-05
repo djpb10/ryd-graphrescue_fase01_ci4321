@@ -142,9 +142,9 @@ function setupScene(ff: FF): void {
 // Target 2: distancia media (requiere al menos Nivel 2, ~23.4°)
 // Target 3: distancia lejana (requiere Nivel 3 de máxima fuerza, ~21.6°)
 const TARGETS = [
-  { x: -8.0, y: 5.5, z: -8.0 },  // Nivel 1 (cercano-medio, a 16 unidades de la torreta)
+  { x: -5.0, y: 5.5, z: -8.0 },  // Nivel 1 (cercano-medio, a 16 unidades de la torreta)
   { x: 0.0, y: 7.0, z: -16.0 },  // Nivel 2 (medio)
-  { x: 8.0, y: 8.0, z: -35.0 },  // Nivel 3 (lejano)
+  { x: 5.0, y: 8.0, z: -35.0 },  // Nivel 3 (lejano)
 ] as const;
 
 // Turret state and configuration
