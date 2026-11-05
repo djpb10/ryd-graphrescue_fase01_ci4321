@@ -150,6 +150,8 @@ const TARGETS = [
 // Turret state and configuration
 const MIN_PITCH = 5 * (Math.PI / 180);
 const MAX_PITCH = 90 * (Math.PI / 180);
+// Límite de movimiento lateral de la torreta para mantenerla siempre dentro del campo de visión de la cámara
+const TURRET_MAX_X = 7.0;
 
 let activeTargets = [true, true, true]; // Para saber cuáles siguen vivos
 
@@ -434,15 +436,14 @@ function run(canvas: HTMLCanvasElement): void {
   let lastTime = performance.now();
 
   function update(dt: number): void {
-    const halfWidth = FIELD_WIDTH / 2 - 2.0; // Margen para no salirse del campo
     if (keysPressed['ArrowLeft']) {
       TURRET.x -= TURRET.speed * dt;
     }
     if (keysPressed['ArrowRight']) {
       TURRET.x += TURRET.speed * dt;
     }
-    // Delimitar dentro del campo
-    TURRET.x = Math.max(-halfWidth, Math.min(halfWidth, TURRET.x));
+    // Delimitar dentro del campo de visión de la cámara
+    TURRET.x = Math.max(-TURRET_MAX_X, Math.min(TURRET_MAX_X, TURRET.x));
 
     // Control de elevación/rotación del cañón y proyectil
     if (keysPressed['ArrowUp']) {
