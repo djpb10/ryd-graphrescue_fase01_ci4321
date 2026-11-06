@@ -1,62 +1,40 @@
-# Rotating Cube: FixedFunction and a game loop
+# Simulador de Cañón Parabólico 3D
 
-A yellow cube rotates on the Y axis. One directional light shines on it. The example uses the FixedFunction (FF) module, so no shader code appears in the example. The code shows the game loop that drives the animation.
+Proyecto para la materia de Computación Gráfica. Consiste en un entorno gráfico 3D interactivo creado desde cero con WebGL2 y TypeScript, enfocado en la simulación de física parabólica, detección de colisiones 3D y transformaciones matriciales jerárquicas sin usar motores de juego comerciales
 
-## Requirements
+## Integrantes
 
-- Node.js 18 or later (tested with Node 24)
-- npm
-- A browser with WebGL2 support
+* David Pereira
+* Rossana Ilardo
 
-## Run
+## Controles
 
-1. Install the dependencies. This is the only step that needs a network connection.
+* Flechas Izquierda / Derecha: Mover la torreta lateralmente dentro del campo
+* Flechas Arriba / Abajo: Ajustar la inclinación del cañón (restringido entre 5° y 90°)
+* Teclas 1, 2, 3 / F: Seleccionar el nivel de potencia del disparo (Nivel 1, 2 o 3)
+* Barra Espaciadora: Disparar el proyectil
+* Tecla R: Reiniciar el juego (restablece objetivos, torreta y proyectil)
 
-   ```
+## Lo que hace el proyecto
+
+* Simulación de trayectoria parabólica en tiempo real con gravedad e integración por delta time para mantener la velocidad independiente de los FPS
+* Torreta manejada mediante matrices de transformación con límites de rotación
+* Cálculo de distancia euclidiana en ejes para los impactos con los objetivos flotantes
+* Geometrías (esferas, cilindros, planos y prismas) calculando vértices y normales
+* Barras de estado integradas en la propia torreta 3D que indican el nivel de potencia activo
+
+## Cómo correr el proyecto
+
+1. Instalar las dependencias del proyecto:
    npm install
-   ```
 
-2. Start the development server.
+2. Iniciar el servidor local de desarrollo:
+   npm run dev   
 
-   ```
-   npm run dev
-   ```
+3. Abrir en el navegador la dirección indicada: http://localhost:5173   
 
-3. Open `http://localhost:5173` in your browser.
-
-## Use
-
-- Press `Space` to change the cube color. The color cycles yellow → cyan → magenta → yellow.
-- Press `R` to stop or restart the rotation.
-- Holding a key counts as one press. Key auto-repeat is ignored.
-
-## Game loop
-
-Each frame runs three steps in this order:
-
-1. `processInput` handles the `Space` and `R` presses recorded since the last frame.
-2. `update(dt)` changes the rotation angle.
-3. `render` draws the scene.
-
-`dt` is the time since the last frame, in seconds. The value is clamped to 0.1 s. A hidden tab does not make the cube jump when the tab becomes visible again. The rotation speed is in radians per second. The cube turns at the same speed on a 60 Hz display and on a 120 Hz display.
-
-## Other commands
-
-| Command           | Action                                          |
-| ----------------- | ----------------------------------------------- |
-| `npm run build`   | Type-check with `tsc` and build to `dist/`      |
-| `npm run preview` | Serve the built `dist/` folder locally          |
-
-## Project layout
-
-```
-index.html                 page markup
-src/main.ts                WebGL setup, the game loop, and the canvas
-src/constants.ts           geometry, colors, and clear color (#1b1e2b)
-src/vendor/ff/             FF v1.0 (read only; do not edit)
-```
-
-## Troubleshooting
-
-- **Blank page or "WebGL2 is not available."** Enable hardware acceleration in the browser, or try another browser.
-- **Port 5173 is in use.** Stop the other process, or run `npx vite --port 3000`.
+## Tecnologías
+Lenguaje: TypeScript
+Gráficos: WebGL2 / Matemáticas de Proyección 3D
+Herramienta de compilación: Vite
+Entorno: Node.js 

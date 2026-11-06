@@ -1,4 +1,4 @@
-// 3D Scene: Turret, ground plane, targets and projectile using FixedFunction (FF)
+// Escena 3D Torreta, plano del suelo, objetivos y proyectil
 import './style.css';
 import { mat3, mat4 } from 'gl-matrix';
 import { ATTRIB, createFixedFunction, LIGHTING, Color } from './vendor/ff/ff';
@@ -26,7 +26,6 @@ import {
 
 type FF = ReturnType<typeof createFixedFunction>;
 
-// WebGL helper types
 interface GPUMesh {
   vao: WebGLVertexArrayObject;
   indexCount: number;
@@ -70,7 +69,6 @@ function uploadMesh(gl: WebGL2RenderingContext, mesh: MeshData): GPUMesh {
 function createDynamicLineMesh(gl: WebGL2RenderingContext, maxVertices: number = 300): DynamicLineMesh {
   const vbo = gl.createBuffer()!;
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-  // Allocate buffer for maxVertices positions (3 floats per vertex)
   gl.bufferData(gl.ARRAY_BUFFER, maxVertices * 3 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
 
   const vao = gl.createVertexArray()!;
@@ -78,7 +76,6 @@ function createDynamicLineMesh(gl: WebGL2RenderingContext, maxVertices: number =
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
   gl.enableVertexAttribArray(ATTRIB.POSITION);
   gl.vertexAttribPointer(ATTRIB.POSITION, 3, gl.FLOAT, false, 3 * Float32Array.BYTES_PER_ELEMENT, 0);
-  // Disabled normal array: FixedFunction unlit path will use ATTRIB.COLOR
   gl.disableVertexAttribArray(ATTRIB.NORMAL);
   gl.bindVertexArray(null);
 
@@ -110,7 +107,7 @@ function setupScene(ff: FF): void {
   ff.enable(LIGHTING);
   ff.setGlobalAmbient([0.35, 0.35, 0.38, 1.0]);
 
-  // Directional light from upper-left lighting the scene
+  // Luz direccional
   ff.setLight(0, {
     position: [0.6, 1.0, 0.5, 0.0],
     ambient: [0.2, 0.2, 0.2, 1.0],
@@ -119,7 +116,7 @@ function setupScene(ff: FF): void {
   });
   ff.enableLight(0);
 
-  // Third-person perspective camera viewing the turret, ground and floating targets
+  // Cámara orientada hacia la torreta, el suelo y los objetivos flotantes
   const view = mat4.lookAt(mat4.create(), [0.0, 7.0, 24.0], [0.0, 4.0, -8.0], [0, 1, 0]);
   ff.setViewMatrix(view);
 
@@ -133,24 +130,20 @@ function setupScene(ff: FF): void {
   ff.setProjectionMatrix(projection);
 }
 
-// ---------------------------------------------------------------------------
-// Scene Objects Configuration (Static)
-// ---------------------------------------------------------------------------
-
-// Fixed static positions for the 3 reddish-orange targets floating over the field:
-// Target 1: distancia cercana (alcanzable con Nivel 1, ~28.2°)
-// Target 2: distancia media (requiere al menos Nivel 2, ~23.4°)
-// Target 3: distancia lejana (requiere Nivel 3 de máxima fuerza, ~21.6°)
+// Objetos de la Escena
+// Objetivo 1: Distancia cercana
+// Objetivo 2: Distancia media
+// Objetivo 3: Distancia lejana
 const TARGETS = [
-  { x: -5.0, y: 5.5, z: -8.0 },  // Nivel 1 (cercano-medio, a 16 unidades de la torreta)
-  { x: 0.0, y: 7.0, z: -16.0 },  // Nivel 2 (medio)
-  { x: 5.0, y: 8.0, z: -35.0 },  // Nivel 3 (lejano)
+  { x: -5.0, y: 5.5, z: -8.0 },  
+  { x: 0.0, y: 7.0, z: -16.0 },  
+  { x: 5.0, y: 8.0, z: -35.0 },  
 ] as const;
 
-// Turret state and configuration
+// Configuración y estado de la torreta
 const MIN_PITCH = 5 * (Math.PI / 180);
 const MAX_PITCH = 90 * (Math.PI / 180);
-// Límite de movimiento lateral de la torreta para mantenerla siempre dentro del campo de visión de la cámara
+// Límite de movimiento de la torreta
 const TURRET_MAX_X = 7.0;
 
 let activeTargets = [true, true, true]; // Para saber cuáles siguen vivos
@@ -168,22 +161,21 @@ const PROJECTILE = {
 const TURRET = {
   x: 0.0,
   z: 8.0, // Movida hacia adelante hacia el campo
-  pitchAngle: 28 * (Math.PI / 180), // Ángulo inicial entre 5 y 90 grados
-  speed: 12.0, // Unidades por segundo (movimiento horizontal)
-  pitchSpeed: 1.0, // Radianes por segundo (~57 deg/s)
+  pitchAngle: 28 * (Math.PI / 180), 
+  speed: 12.0, 
+  pitchSpeed: 1.0, 
 };
 
-// Controls state
+// Controles del teclado
 const keysPressed: Record<string, boolean> = {};
 
-let powerLevel = 1; // 1, 2, o 3
-const LAUNCH_SPEEDS = [0, 20.0, 30.0, 42.0]; // [dummy, nivel 1, nivel 2, nivel 3]
-const GRAVITY = -24.0; // Aceleración en Y
+let powerLevel = 1; 
+const LAUNCH_SPEEDS = [0, 20.0, 30.0, 42.0]; 
+const GRAVITY = -24.0; 
 
-// Actualiza tus TRACKED_KEYS para incluir los números, la F, espacio y R
 const TRACKED_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '1', '2', '3', 'f', 'F', ' ', 'r', 'R']);
 
-// Event listeners de teclado para interacción
+// Listeners de teclado para interacción del usuario
 window.addEventListener('keydown', (e: KeyboardEvent) => {
   if (TRACKED_KEYS.has(e.key)) {
     keysPressed[e.key] = true;
@@ -215,7 +207,7 @@ function fireProjectile() {
   
   // Posición inicial: la punta del cañón
   const jointCenterY = 1.8 + 0.25; 
-  // Trigonometría para calcular la punta exacta basado en el pitch (rotado en el eje X)
+  // Trigonometría para calcular la punta exacta basado en el pitch 
   PROJECTILE.x = TURRET.x;
   PROJECTILE.y = jointCenterY + Math.sin(TURRET.pitchAngle) * CANNON_LENGTH;
   PROJECTILE.z = TURRET.z - Math.cos(TURRET.pitchAngle) * CANNON_LENGTH;
@@ -233,10 +225,6 @@ function resetGame() {
   TURRET.x = 0;
   TURRET.pitchAngle = 28 * (Math.PI / 180);
 }
-
-// ---------------------------------------------------------------------------
-// Rendering
-// ---------------------------------------------------------------------------
 
 const model = mat4.create();
 const normalMatrix = mat3.create();
@@ -277,11 +265,11 @@ function render(
 ): void {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // Ground: Large brown plane / parallelogram
+  // Suelo
   mat4.identity(model);
   drawMesh(gl, ff, meshes.ground, model, COLORS.GROUND, 5);
 
-  // Targets: Three static reddish-orange spheres floating above the ground
+  // Objetivos
   for (let i = 0; i < TARGETS.length; i++) {
     if (!activeTargets[i]) continue; // No dibujar si fue destruido
     const target = TARGETS[i];
@@ -290,25 +278,24 @@ function render(
     drawMesh(gl, ff, meshes.sphere, model, COLORS.TARGET, 35);
   }
 
-  // Turret (Dark metallic gray: scaled down proportionately)
+  // Torreta
   const tx = TURRET.x;
   const tz = TURRET.z;
 
-  // Turret Body (Rectangular prism: width 2.2, height 1.1, depth 2.2)
+  // Cuerpo de la torreta
   const bodyHeight = 1.8;
   mat4.identity(model);
   mat4.translate(model, model, [tx, bodyHeight / 2, tz]);
   mat4.scale(model, model, [2.5, bodyHeight, 2.2]);
   drawMesh(gl, ff, meshes.box, model, COLORS.TURRET_BODY, 20);
 
-  // --- INDICADOR DE FUERZA (3 Barras en la parte trasera del cuerpo) ---
+  // Indicador de fuerza
   const COLOR_BAR_OFF: Color = [0.0, 0.4, 0.0, 1.0]; // Verde oscuro
   const COLOR_BAR_ON: Color = [0.2, 0.9, 0.2, 1.0];  // Verde claro
 
-  // La cara trasera está en +Z (hacia la cámara, tz + profundidad/2 = tz + 1.1)
   const barOffsetsX = [-0.65, 0.0, 0.65];
   for (let b = 1; b <= 3; b++) {
-    // Si el nivel actual es mayor o igual a la barra, se enciende
+  
     const barColor = b <= powerLevel ? COLOR_BAR_ON : COLOR_BAR_OFF;
     mat4.identity(model);
     mat4.translate(model, model, [tx + barOffsetsX[b - 1], bodyHeight / 2, tz + 1.12]);
@@ -316,7 +303,7 @@ function render(
     drawMesh(gl, ff, meshes.box, model, barColor, 10);
   }
 
-  // Sphere joint on top of the rectangular body
+  // Pivote sobre el cuerpo
   const jointRadius = 0.60;
   const jointCenterY = bodyHeight + 0.25;
   const jointScale = jointRadius / TARGET_RADIUS;
@@ -325,15 +312,14 @@ function render(
   mat4.scale(model, model, [jointScale, jointScale, jointScale]);
   drawMesh(gl, ff, meshes.sphere, model, COLORS.TURRET_BODY, 25);
 
-  // Cannon barrel (cylinder inclined by pitchAngle emerging from the sphere joint)
+  // Tubo del cañón
   const cannonPivotY = jointCenterY;
   mat4.identity(model);
   mat4.translate(model, model, [tx, cannonPivotY, tz]);
   mat4.rotateX(model, model, TURRET.pitchAngle);
   drawMesh(gl, ff, meshes.cylinder, model, COLORS.TURRET_CANNON, 30);
 
-  // --- VISTA PREVIA DE LA TRAYECTORIA ---
-  // Se muestra cuando el proyectil no está volando, actualizándose con posición, ángulo y fuerza
+  // Previsualización de la trayectoria
   if (!PROJECTILE.isFlying && meshes.trajectory.vertexCount > 1) {
     ff.disable(LIGHTING);
     ff.setColor(COLORS.TRAJECTORY_LINE);
@@ -346,9 +332,9 @@ function render(
     ff.enable(LIGHTING);
   }
 
-  // Projectile: Controlar si está pegado al cañón o volando libre
+  // Controlar si está pegado al cañón o volando libre
   if (!PROJECTILE.isFlying) {
-    // Pegado a la torreta (como lo hizo tu compañero)
+
     const projScale = PROJECTILE_RADIUS / TARGET_RADIUS;
     mat4.identity(model);
     mat4.translate(model, model, [tx, cannonPivotY, tz]);
@@ -366,15 +352,11 @@ function render(
   }
 } 
 
-// ---------------------------------------------------------------------------
-// Run
-// ---------------------------------------------------------------------------
 
 function run(canvas: HTMLCanvasElement): void {
   const gl = getContext(canvas);
   const ff = createFixedFunction(gl, { debug: false });
 
-  // Generate primitives in code
   const groundMesh = createPlane(FIELD_WIDTH, FIELD_DEPTH);
   const boxMesh = createBox(1.0, 1.0, 1.0);
   const sphereMesh = createSphere(TARGET_RADIUS, 28, 28);
@@ -408,7 +390,7 @@ function run(canvas: HTMLCanvasElement): void {
     let simVy = speed * Math.sin(TURRET.pitchAngle);
     const simVz = -speed * Math.cos(TURRET.pitchAngle);
 
-    const simDt = 0.016; // paso de tiempo para suavidad de la curva
+    const simDt = 0.016; 
     let count = 0;
 
     trajectoryBuffer[count * 3 + 0] = simX;
@@ -442,17 +424,17 @@ function run(canvas: HTMLCanvasElement): void {
     if (keysPressed['ArrowRight']) {
       TURRET.x += TURRET.speed * dt;
     }
-    // Delimitar dentro del campo de visión de la cámara
+    // Limite dentro del campo de visión de la cámara
     TURRET.x = Math.max(-TURRET_MAX_X, Math.min(TURRET_MAX_X, TURRET.x));
 
-    // Control de elevación/rotación del cañón y proyectil
+    // Control de elevación del cañón y proyectil
     if (keysPressed['ArrowUp']) {
       TURRET.pitchAngle += TURRET.pitchSpeed * dt;
     }
     if (keysPressed['ArrowDown']) {
       TURRET.pitchAngle -= TURRET.pitchSpeed * dt;
     }
-    // Limitar entre 5° y 90°
+
     TURRET.pitchAngle = Math.max(MIN_PITCH, Math.min(MAX_PITCH, TURRET.pitchAngle));
 
     if (PROJECTILE.isFlying) {
@@ -470,15 +452,15 @@ function run(canvas: HTMLCanvasElement): void {
         if (!activeTargets[i]) continue;
         const target = TARGETS[i];
         
-        // Distancia euclidiana entre centro de bala y centro de objetivo
+        // Distancia entre centro de bala y centro de objetivo
         const dx = PROJECTILE.x - target.x;
         const dy = PROJECTILE.y - target.y;
         const dz = PROJECTILE.z - target.z;
         const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
         if (dist <= (TARGET_RADIUS + PROJECTILE_RADIUS)) {
-          activeTargets[i] = false; // Objetivo destruido
-          PROJECTILE.isFlying = false; // Bala desaparece
+          activeTargets[i] = false; 
+          PROJECTILE.isFlying = false; 
           break;
         }
       }
